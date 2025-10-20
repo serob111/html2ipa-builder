@@ -44,25 +44,23 @@ jobs:
           pod repo update
           pod install --verbose
 
-      - name: Build unsigned archive
+      - name: Build .app (unsigned)
         run: |
           cd ios/App
-          xcodebuild clean -scheme App -configuration Release
           xcodebuild -scheme App -sdk iphoneos -configuration Release \
             CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" \
-            archive -archivePath $PWD/build/App.xcarchive || true
+            BUILD_DIR=$PWD/build clean build
 
-      - name: Export unsigned .ipa manually
+      - name: Package .ipa manually
         run: |
           cd ios/App
-          mkdir -p build/ipa/Payload
-          cp -R build/App.xcarchive/Products/Applications/App.app build/ipa/Payload/
-          cd build/ipa
-          zip -r MyApp.ipa Payload
-          cd ../../..
-          mv ios/App/build/ipa/MyApp.ipa ios/App/build/ipa/MyApp_unsigned.ipa
+          mkdir -p Payload
+          cp -R build/Release-iphoneos/App.app Payload/
+          zip -r MyApp_unsigned.ipa Payload
+          mkdir -p build/ipa
+          mv MyApp_unsigned.ipa build/ipa/
 
-      - name: Upload unsigned .ipa artifact
+      - name: Upload unsigned .ipa
         uses: actions/upload-artifact@v4
         with:
           name: ios-app
