@@ -28,7 +28,7 @@ jobs:
       - name: Create Capacitor project
         run: |
           npm init -y
-          npm install @capacitor/cli @capacitor/core
+          npm install @capacitor/cli @capacitor/core @capacitor/ios
           APP_NAME="${{ github.event.inputs.app_name }}"
           PACKAGE_ID="com.${{ github.actor }}.${{ github.event.inputs.app_name }}"
           npx cap init "$APP_NAME" "$PACKAGE_ID" --web-dir=www
@@ -44,18 +44,18 @@ jobs:
           pod repo update
           pod install --verbose
 
-      - name: Build unsigned .app
+      - name: Build .app (unsigned, with Capacitor)
         run: |
           cd ios/App
-          xcodebuild -scheme App -sdk iphoneos -configuration Release \
-            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
-            clean build
+          # Убедимся, что Capacitor frameworks реально скопированы
+          npx cap sync ios
+          xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos -configuration Release \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" clean build
 
       - name: Package .ipa manually
         run: |
           cd ios/App
           mkdir -p Payload
-          # .app появляется именно здесь после билда:
           cp -R build/Release-iphoneos/App.app Payload/
           zip -r MyApp_unsigned.ipa Payload
           mkdir -p build/ipa
