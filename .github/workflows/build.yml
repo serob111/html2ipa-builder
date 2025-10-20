@@ -38,30 +38,33 @@ jobs:
       - name: Install CocoaPods
         run: sudo gem install cocoapods
 
-      - name: Create Podfile manually before iOS add
+      - name: Add iOS platform
         run: |
-          mkdir -p ios/App
-          echo 'platform :ios, "16.0"' > ios/App/Podfile
-          echo 'use_frameworks!' >> ios/App/Podfile
-          echo 'use_modular_headers!' >> ios/App/Podfile
-          echo 'target "App" do' >> ios/App/Podfile
-          echo '  pod "Capacitor", :path => "../../node_modules/@capacitor/ios"' >> ios/App/Podfile
-          echo '  pod "CapacitorCordova", :path => "../../node_modules/@capacitor/ios"' >> ios/App/Podfile
-          echo 'end' >> ios/App/Podfile
-          cat ios/App/Podfile
+          npx cap add ios || true
+          echo "✅ iOS folder created:"
+          ls -R ios || true
 
-      - name: Add iOS platform again
+      - name: Patch Podfile and Xcode project for iOS 14.0
         run: |
-          rm -rf ios
-          npx cap add ios
-          echo "✅ iOS added fresh"
-
-      - name: Patch Podfile again for iOS 16
-        run: |
-          if [ -f ios/App/Podfile ]; then
-            sed -i '' 's/platform :ios.*/platform :ios, "16.0"/' ios/App/Podfile || true
+          cd ios/App
+          # 1. Ensure Podfile exists and set platform
+          if [ -f Podfile ]; then
+            sed -i '' 's/platform :ios.*/platform :ios, "14.0"/' Podfile || true
+          else
+            echo 'platform :ios, "14.0"' > Podfile
+            echo 'target "App" do' >> Podfile
+            echo '  use_frameworks!' >> Podfile
+            echo '  use_modular_headers!' >> Podfile
+            echo 'end' >> Podfile
           fi
-          cat ios/App/Podfile
+
+          # 2. Fix Xcode project deployment target
+          if [ -f "../App.xcodeproj/project.pbxproj" ]; then
+            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*;/IPHONEOS_DEPLOYMENT_TARGET = 14.0;/' ../App.xcodeproj/project.pbxproj || true
+          fi
+
+          echo "✅ Deployment target set to iOS 14.0"
+          cat Podfile | head -n 5
 
       - name: Install Pods
         run: |
