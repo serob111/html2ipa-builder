@@ -18,10 +18,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 18
 
@@ -43,7 +43,9 @@ jobs:
           xcodebuild -exportArchive -archivePath $PWD/build/App.xcarchive -exportPath $PWD/build/ipa -exportOptionsPlist <(echo '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>method</key><string>development</string></dict></plist>')
 
       - name: Upload .ipa as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ios-app
           path: ios/App/build/ipa/*.ipa
+          if-no-files-found: error
+          retention-days: 7
