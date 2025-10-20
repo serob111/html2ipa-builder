@@ -1,4 +1,4 @@
-name: Build iOS .ipa from HTML
+name: Build unsigned iOS .ipa from HTML
 
 on:
   workflow_dispatch:
@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: 18
 
-      - name: Install Capacitor and create iOS project
+      - name: Create Capacitor project and add iOS
         run: |
           npm init -y
           npm install @capacitor/cli @capacitor/core
@@ -34,27 +34,26 @@ jobs:
           npx cap init "$APP_NAME" "$PACKAGE_ID" --web-dir=www
           mkdir -p www
           cp "${{ github.event.inputs.html_file }}" www/index.html
-          # добавляем iOS (Capacitor сам вызовет pod install, может упасть — это ок)
           npx cap add ios || true
 
-      - name: Fix CocoaPods and iOS deployment target
+      - name: Fix CocoaPods / iOS target
         run: |
           sudo gem install cocoapods
           cd ios/App
-          # гарантируем, что Podfile существует
-          if [ ! -f Podfile ]; then
-            echo 'platform :ios, "15.0"' > Podfile
-          fi
-          # если существует, поднимаем таргет
           sed -i '' 's/platform :ios.*/platform :ios, "15.0"/' Podfile || true
           pod repo update
           pod install --verbose
 
-      - name: Build .ipa (unsigned)
+      - name: Build unsigned .ipa
         run: |
           cd ios/App
-          xcodebuild -scheme App -sdk iphoneos -configuration Release archive -archivePath $PWD/build/App.xcarchive
-          xcodebuild -exportArchive -archivePath $PWD/build/App.xcarchive -exportPath $PWD/build/ipa -exportOptionsPlist <(echo '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>method</key><string>development</string></dict></plist>')
+          xcodebuild -scheme App -sdk iphoneos -configuration Release \
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            archive -archivePath $PWD/build/App.xcarchive
+          xcodebuild -exportArchive \
+            -archivePath $PWD/build/App.xcarchive \
+            -exportPath $PWD/build/ipa \
+            -exportOptionsPlist <(echo '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>method</key><string>development</string></dict></plist>')
 
       - name: Upload .ipa as artifact
         uses: actions/upload-artifact@v4
