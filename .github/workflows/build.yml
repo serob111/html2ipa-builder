@@ -25,14 +25,14 @@ jobs:
         with:
           node-version: 18
 
-      - name: Install Capacitor
+      - name: Install Capacitor and deps
         run: |
           npm init -y
           npm install @capacitor/cli @capacitor/core @capacitor/ios
           mkdir -p www
           echo "<html><body><h1>Hello iOS</h1></body></html>" > www/index.html
 
-      - name: Init Capacitor project
+      - name: Initialize Capacitor project
         run: |
           APP_NAME="${{ github.event.inputs.app_name }}"
           PACKAGE_ID="com.${{ github.actor }}.${{ github.event.inputs.app_name }}"
@@ -41,13 +41,15 @@ jobs:
       - name: Install CocoaPods
         run: sudo gem install cocoapods
 
-      - name: Add iOS platform (skip deps)
+      - name: Add iOS platform (ignore pod error)
         run: |
-          # добавляем платформу, но не выполняем pod install
-          npx cap add ios --skip-deps || true
-          ls -la ios/App
+          # npx cap add ios может упасть из-за старого iOS target — это ок
+          npx cap add ios || true
+          echo "✅ iOS folder structure after add:"
+          ls -la ios || true
+          ls -la ios/App || true
 
-      - name: Patch Podfile (iOS 16.0)
+      - name: Patch Podfile (force iOS 16.0)
         run: |
           cd ios/App
           if [ -f Podfile ]; then
@@ -55,9 +57,10 @@ jobs:
           else
             echo 'platform :ios, "16.0"' > Podfile
           fi
+          echo "✅ Podfile patched to iOS 16.0:"
           cat Podfile
 
-      - name: Install Pods
+      - name: Install Pods manually
         run: |
           cd ios/App
           pod repo update
