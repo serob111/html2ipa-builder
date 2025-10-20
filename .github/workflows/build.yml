@@ -41,13 +41,13 @@ jobs:
       - name: Add iOS platform
         run: |
           npx cap add ios || true
-          echo "✅ iOS folder created:"
+          echo "✅ iOS platform created:"
           ls -R ios || true
 
-      - name: Patch Podfile and Xcode project for iOS 14.0
+      - name: Force deployment target to iOS 14.0 everywhere
         run: |
+          # 1️⃣ Подготовим Podfile
           cd ios/App
-          # 1. Ensure Podfile exists and set platform
           if [ -f Podfile ]; then
             sed -i '' 's/platform :ios.*/platform :ios, "14.0"/' Podfile || true
           else
@@ -58,13 +58,15 @@ jobs:
             echo 'end' >> Podfile
           fi
 
-          # 2. Fix Xcode project deployment target
-          if [ -f "../App.xcodeproj/project.pbxproj" ]; then
-            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*;/IPHONEOS_DEPLOYMENT_TARGET = 14.0;/' ../App.xcodeproj/project.pbxproj || true
-          fi
-
-          echo "✅ Deployment target set to iOS 14.0"
-          cat Podfile | head -n 5
+          # 2️⃣ Исправим все Xcode targets
+          cd ..
+          find . -type f -name "project.pbxproj" -print0 | while IFS= read -r -d '' file; do
+            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = 14.0/' "$file" || true
+          done
+          find . -type f -name "*.xcconfig" -print0 | while IFS= read -r -d '' file; do
+            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = 14.0/' "$file" || true
+          done
+          echo "✅ All deployment targets forced to iOS 14.0"
 
       - name: Install Pods
         run: |
@@ -85,7 +87,7 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            clean build
+            clean build | xcpretty
 
       - name: Package unsigned .ipa
         run: |
