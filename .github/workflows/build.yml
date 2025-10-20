@@ -25,14 +25,15 @@ jobs:
         with:
           node-version: 18
 
-      - name: Install Capacitor and Xcode project
-        run: |
-          npm init -y
-          npm install @capacitor/cli @capacitor/core
-          npx cap init "${{ github.event.inputs.app_name }}" com.${{ github.actor }}.${{ github.event.inputs.app_name,, }} --web-dir=www
-          mkdir -p www
-          cp ${{ github.event.inputs.html_file }} www/index.html
-          npx cap add ios
+- name: Install Capacitor and Xcode project
+  run: |
+    npm init -y
+    npm install @capacitor/cli @capacitor/core
+    npx cap init "${{ github.event.inputs.app_name }}" "com.${{ github.actor }}.${{ github.event.inputs.app_name }}" --web-dir=www
+    mkdir -p www
+    cp ${{ github.event.inputs.html_file }} www/index.html
+    npx cap add ios
+
 
       - name: Build .ipa (unsigned)
         run: |
