@@ -25,29 +25,29 @@ jobs:
         with:
           node-version: 18
 
-      - name: Install Capacitor and dependencies
+      - name: Install Capacitor
         run: |
           npm init -y
           npm install @capacitor/cli @capacitor/core @capacitor/ios
           mkdir -p www
           echo "<html><body><h1>Hello iOS</h1></body></html>" > www/index.html
 
-      - name: Initialize Capacitor project
+      - name: Init Capacitor project
         run: |
           APP_NAME="${{ github.event.inputs.app_name }}"
           PACKAGE_ID="com.${{ github.actor }}.${{ github.event.inputs.app_name }}"
           npx cap init "$APP_NAME" "$PACKAGE_ID" --web-dir=www
 
       - name: Install CocoaPods
-        run: |
-          sudo gem install cocoapods
+        run: sudo gem install cocoapods
 
-      - name: Add iOS platform
+      - name: Add iOS platform (skip deps)
         run: |
-          npx cap add ios
-          echo "✅ iOS platform added successfully"
+          # добавляем платформу, но не выполняем pod install
+          npx cap add ios --skip-deps || true
+          ls -la ios/App
 
-      - name: Patch Podfile target (set iOS 16)
+      - name: Patch Podfile (iOS 16.0)
         run: |
           cd ios/App
           if [ -f Podfile ]; then
@@ -57,19 +57,18 @@ jobs:
           fi
           cat Podfile
 
-      - name: Install Pods (after patch)
+      - name: Install Pods
         run: |
           cd ios/App
           pod repo update
           pod install --verbose
 
-      - name: Build .app (unsigned)
+      - name: Build unsigned .app
         run: |
           cd ios/App
           npx cap sync ios
           xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos -configuration Release \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-            clean build
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" clean build
 
       - name: Package .ipa manually
         run: |
