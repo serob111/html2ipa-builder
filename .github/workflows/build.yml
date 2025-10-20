@@ -36,6 +36,17 @@ jobs:
           cp "${{ github.event.inputs.html_file }}" www/index.html
           npx cap add ios
 
+      - name: Fix CocoaPods and iOS deployment target
+        run: |
+          sudo gem install cocoapods
+          cd ios/App
+          # иногда Podfile.lock остаётся со старыми версиями
+          rm -f Podfile.lock
+          # поднимаем минимальный таргет до 14.0
+          sed -i '' 's/platform :ios, .*/platform :ios, "14.0"/' Podfile
+          pod repo update
+          pod install --verbose
+
       - name: Build .ipa (unsigned)
         run: |
           cd ios/App
