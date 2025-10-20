@@ -38,23 +38,35 @@ jobs:
           PACKAGE_ID="com.${{ github.actor }}.${{ github.event.inputs.app_name }}"
           npx cap init "$APP_NAME" "$PACKAGE_ID" --web-dir=www
 
-      - name: Install CocoaPods (required before adding iOS)
+      - name: Install CocoaPods
         run: |
           sudo gem install cocoapods
 
       - name: Add iOS platform
         run: |
           npx cap add ios
-          ls -la ios
+          echo "✅ iOS platform added successfully"
 
-      - name: Sync iOS platform with Capacitor
-        run: |
-          npx cap sync ios
-
-      - name: Build unsigned .app
+      - name: Patch Podfile target (set iOS 16)
         run: |
           cd ios/App
-          pod install
+          if [ -f Podfile ]; then
+            sed -i '' 's/platform :ios.*/platform :ios, "16.0"/' Podfile
+          else
+            echo 'platform :ios, "16.0"' > Podfile
+          fi
+          cat Podfile
+
+      - name: Install Pods (after patch)
+        run: |
+          cd ios/App
+          pod repo update
+          pod install --verbose
+
+      - name: Build .app (unsigned)
+        run: |
+          cd ios/App
+          npx cap sync ios
           xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos -configuration Release \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             clean build
