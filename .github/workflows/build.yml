@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: 18
 
-      - name: Create Capacitor project and add iOS
+      - name: Install Capacitor and create iOS project
         run: |
           npm init -y
           npm install @capacitor/cli @capacitor/core
@@ -36,7 +36,7 @@ jobs:
           cp "${{ github.event.inputs.html_file }}" www/index.html
           npx cap add ios || true
 
-      - name: Fix CocoaPods / iOS target
+      - name: Fix CocoaPods and iOS deployment target
         run: |
           sudo gem install cocoapods
           cd ios/App
@@ -44,21 +44,28 @@ jobs:
           pod repo update
           pod install --verbose
 
-      - name: Build unsigned .ipa
+      - name: Build unsigned archive
         run: |
           cd ios/App
+          xcodebuild clean -scheme App -configuration Release
           xcodebuild -scheme App -sdk iphoneos -configuration Release \
-            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
-            archive -archivePath $PWD/build/App.xcarchive
-          xcodebuild -exportArchive \
-            -archivePath $PWD/build/App.xcarchive \
-            -exportPath $PWD/build/ipa \
-            -exportOptionsPlist <(echo '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>method</key><string>development</string></dict></plist>')
+            CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" \
+            archive -archivePath $PWD/build/App.xcarchive || true
 
-      - name: Upload .ipa as artifact
+      - name: Export unsigned .ipa manually
+        run: |
+          cd ios/App
+          mkdir -p build/ipa/Payload
+          cp -R build/App.xcarchive/Products/Applications/App.app build/ipa/Payload/
+          cd build/ipa
+          zip -r MyApp.ipa Payload
+          cd ../../..
+          mv ios/App/build/ipa/MyApp.ipa ios/App/build/ipa/MyApp_unsigned.ipa
+
+      - name: Upload unsigned .ipa artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-app
-          path: ios/App/build/ipa/*.ipa
+          path: ios/App/build/ipa/MyApp_unsigned.ipa
           if-no-files-found: error
           retention-days: 7
