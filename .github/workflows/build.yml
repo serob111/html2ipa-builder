@@ -25,32 +25,39 @@ jobs:
         with:
           node-version: 18
 
-      - name: Create Capacitor project
+      - name: Install Capacitor and dependencies
         run: |
           npm init -y
           npm install @capacitor/cli @capacitor/core @capacitor/ios
+          mkdir -p www
+          echo "<html><body><h1>Hello iOS</h1></body></html>" > www/index.html
+
+      - name: Initialize Capacitor project
+        run: |
           APP_NAME="${{ github.event.inputs.app_name }}"
           PACKAGE_ID="com.${{ github.actor }}.${{ github.event.inputs.app_name }}"
           npx cap init "$APP_NAME" "$PACKAGE_ID" --web-dir=www
-          mkdir -p www
-          cp "${{ github.event.inputs.html_file }}" www/index.html
-          npx cap add ios || true
 
-      - name: Fix CocoaPods and iOS target
+      - name: Install CocoaPods (required before adding iOS)
         run: |
           sudo gem install cocoapods
-          cd ios/App
-          sed -i '' 's/platform :ios.*/platform :ios, "15.0"/' Podfile || true
-          pod repo update
-          pod install --verbose
 
-      - name: Build .app (unsigned, with Capacitor)
+      - name: Add iOS platform
+        run: |
+          npx cap add ios
+          ls -la ios
+
+      - name: Sync iOS platform with Capacitor
+        run: |
+          npx cap sync ios
+
+      - name: Build unsigned .app
         run: |
           cd ios/App
-          # Убедимся, что Capacitor frameworks реально скопированы
-          npx cap sync ios
+          pod install
           xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos -configuration Release \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" clean build
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            clean build
 
       - name: Package .ipa manually
         run: |
