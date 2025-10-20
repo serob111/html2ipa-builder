@@ -1,0 +1,47 @@
+name: Build iOS .ipa from HTML
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_name:
+        description: "App name"
+        required: true
+        default: "MyHTMLApp"
+      html_file:
+        description: "HTML filename (index.html)"
+        required: true
+        default: "index.html"
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install Capacitor and Xcode project
+        run: |
+          npm init -y
+          npm install @capacitor/cli @capacitor/core
+          npx cap init "${{ github.event.inputs.app_name }}" com.${{ github.actor }}.${{ github.event.inputs.app_name,, }} --web-dir=www
+          mkdir -p www
+          cp ${{ github.event.inputs.html_file }} www/index.html
+          npx cap add ios
+
+      - name: Build .ipa (unsigned)
+        run: |
+          cd ios/App
+          xcodebuild -scheme App -sdk iphoneos -configuration Release archive -archivePath $PWD/build/App.xcarchive
+          xcodebuild -exportArchive -archivePath $PWD/build/App.xcarchive -exportPath $PWD/build/ipa -exportOptionsPlist <(echo '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>method</key><string>development</string></dict></plist>')
+
+      - name: Upload .ipa as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ios-app
+          path: ios/App/build/ipa/*.ipa
