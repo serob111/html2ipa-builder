@@ -34,16 +34,19 @@ jobs:
           npx cap init "$APP_NAME" "$PACKAGE_ID" --web-dir=www
           mkdir -p www
           cp "${{ github.event.inputs.html_file }}" www/index.html
-          npx cap add ios
+          # добавляем iOS без авто pod install
+          npx cap add ios --skip-deps
 
       - name: Fix CocoaPods and iOS deployment target
         run: |
           sudo gem install cocoapods
           cd ios/App
-          # иногда Podfile.lock остаётся со старыми версиями
-          rm -f Podfile.lock
-          # поднимаем минимальный таргет до 14.0
-          sed -i '' 's/platform :ios, .*/platform :ios, "14.0"/' Podfile
+          # если capacitor создал Podfile, патчим target
+          if [ -f Podfile ]; then
+            sed -i '' 's/platform :ios.*/platform :ios, "15.0"/' Podfile || true
+          else
+            echo 'platform :ios, "15.0"' > Podfile
+          fi
           pod repo update
           pod install --verbose
 
