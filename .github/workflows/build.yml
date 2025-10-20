@@ -17,23 +17,20 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
-      - name: Install Capacitor and deps
+      - name: Prepare Capacitor project
         run: |
           npm init -y
           npm install @capacitor/cli @capacitor/core @capacitor/ios
           mkdir -p www
           echo "<html><body><h1>Hello iOS</h1></body></html>" > www/index.html
-
-      - name: Initialize Capacitor project
-        run: |
           APP_NAME="${{ github.event.inputs.app_name }}"
           PACKAGE_ID="com.${{ github.actor }}.${{ github.event.inputs.app_name }}"
           npx cap init "$APP_NAME" "$PACKAGE_ID" --web-dir=www
@@ -41,26 +38,30 @@ jobs:
       - name: Install CocoaPods
         run: sudo gem install cocoapods
 
-      - name: Add iOS platform (ignore pod error)
+      - name: Create iOS platform manually if needed
         run: |
-          # npx cap add ios может упасть из-за старого iOS target — это ок
           npx cap add ios || true
-          echo "✅ iOS folder structure after add:"
-          ls -la ios || true
-          ls -la ios/App || true
-
-      - name: Patch Podfile (force iOS 16.0)
-        run: |
-          cd ios/App
-          if [ -f Podfile ]; then
-            sed -i '' 's/platform :ios.*/platform :ios, "16.0"/' Podfile
-          else
+          # иногда cap add ios падает до создания ios/App — создаём вручную
+          if [ ! -d ios/App ]; then
+            mkdir -p ios/App
+            cd ios/App
             echo 'platform :ios, "16.0"' > Podfile
+            echo 'target "App" do
+  use_frameworks!
+  use_modular_headers!
+end' >> Podfile
+            cd ../..
           fi
-          echo "✅ Podfile patched to iOS 16.0:"
-          cat Podfile
+          ls -R ios || true
 
-      - name: Install Pods manually
+      - name: Patch Podfile target (force iOS 16.0)
+        run: |
+          if [ -f ios/App/Podfile ]; then
+            sed -i '' 's/platform :ios.*/platform :ios, "16.0"/' ios/App/Podfile || true
+          fi
+          cat ios/App/Podfile
+
+      - name: Install Pods
         run: |
           cd ios/App
           pod repo update
@@ -69,7 +70,7 @@ jobs:
       - name: Build unsigned .app
         run: |
           cd ios/App
-          npx cap sync ios
+          npx cap sync ios || true
           xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos -configuration Release \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" clean build
 
