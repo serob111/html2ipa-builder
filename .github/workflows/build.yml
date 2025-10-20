@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: 18
 
-      - name: Install Capacitor and create iOS project
+      - name: Create Capacitor project
         run: |
           npm init -y
           npm install @capacitor/cli @capacitor/core
@@ -36,7 +36,7 @@ jobs:
           cp "${{ github.event.inputs.html_file }}" www/index.html
           npx cap add ios || true
 
-      - name: Fix CocoaPods and iOS deployment target
+      - name: Fix CocoaPods and iOS target
         run: |
           sudo gem install cocoapods
           cd ios/App
@@ -44,17 +44,18 @@ jobs:
           pod repo update
           pod install --verbose
 
-      - name: Build .app (unsigned)
+      - name: Build unsigned .app
         run: |
           cd ios/App
           xcodebuild -scheme App -sdk iphoneos -configuration Release \
-            CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" \
-            BUILD_DIR=$PWD/build clean build
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            clean build
 
       - name: Package .ipa manually
         run: |
           cd ios/App
           mkdir -p Payload
+          # .app появляется именно здесь после билда:
           cp -R build/Release-iphoneos/App.app Payload/
           zip -r MyApp_unsigned.ipa Payload
           mkdir -p build/ipa
