@@ -38,26 +38,29 @@ jobs:
       - name: Install CocoaPods
         run: sudo gem install cocoapods
 
-      - name: Add iOS platform (ignore pod error)
-        run: |
-          npx cap add ios || true
-          echo "✅ iOS folder structure after add:"
-          ls -la ios || true
-          ls -la ios/App || true
-
-      - name: Patch Podfile (force iOS 16.0)
+      - name: Create Podfile manually before iOS add
         run: |
           mkdir -p ios/App
+          echo 'platform :ios, "16.0"' > ios/App/Podfile
+          echo 'use_frameworks!' >> ios/App/Podfile
+          echo 'use_modular_headers!' >> ios/App/Podfile
+          echo 'target "App" do' >> ios/App/Podfile
+          echo '  pod "Capacitor", :path => "../../node_modules/@capacitor/ios"' >> ios/App/Podfile
+          echo '  pod "CapacitorCordova", :path => "../../node_modules/@capacitor/ios"' >> ios/App/Podfile
+          echo 'end' >> ios/App/Podfile
+          cat ios/App/Podfile
+
+      - name: Add iOS platform again
+        run: |
+          rm -rf ios
+          npx cap add ios
+          echo "✅ iOS added fresh"
+
+      - name: Patch Podfile again for iOS 16
+        run: |
           if [ -f ios/App/Podfile ]; then
             sed -i '' 's/platform :ios.*/platform :ios, "16.0"/' ios/App/Podfile || true
-          else
-            echo 'platform :ios, "16.0"' > ios/App/Podfile
-            echo 'target "App" do' >> ios/App/Podfile
-            echo '  use_frameworks!' >> ios/App/Podfile
-            echo '  use_modular_headers!' >> ios/App/Podfile
-            echo 'end' >> ios/App/Podfile
           fi
-          echo "✅ Podfile content:"
           cat ios/App/Podfile
 
       - name: Install Pods
@@ -66,7 +69,7 @@ jobs:
           pod repo update
           pod install --verbose
 
-      - name: Build app without signing or archive
+      - name: Build .app (no signing)
         run: |
           cd ios/App
           npx cap sync ios || true
