@@ -38,7 +38,7 @@ jobs:
       - name: Install CocoaPods
         run: sudo gem install cocoapods
 
-      - name: Add iOS platform (ignore errors)
+      - name: Add iOS platform (ignore pod error)
         run: |
           npx cap add ios || true
           echo "✅ iOS folder structure after add:"
@@ -66,14 +66,22 @@ jobs:
           pod repo update
           pod install --verbose
 
-      - name: Build unsigned .app
+      - name: Build app without signing or archive
         run: |
           cd ios/App
           npx cap sync ios || true
-          xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos -configuration Release \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" clean build
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            BUILD_DIR=$PWD/build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            clean build
 
-      - name: Package .ipa manually
+      - name: Package unsigned .ipa
         run: |
           cd ios/App
           mkdir -p Payload
