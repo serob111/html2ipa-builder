@@ -94,14 +94,14 @@ jobs:
           cd ios/App
           mkdir -p Payload
           cp -R build/Release-iphoneos/App.app Payload/
-          zip -r MyApp_unsigned.ipa Payload
+          zip -r My2App_unsigned.ipa Payload
           mkdir -p build/ipa
-          mv MyApp_unsigned.ipa build/ipa/
+          mv My2App_unsigned.ipa build/ipa/
 
       - name: Upload unsigned .ipa
         uses: actions/upload-artifact@v4
         with:
           name: ios-app
-          path: ios/App/build/ipa/MyApp_unsigned.ipa
+          path: ios/App/build/ipa/My2App_unsigned.ipa
           if-no-files-found: error
           retention-days: 7
