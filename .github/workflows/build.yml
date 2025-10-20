@@ -6,11 +6,11 @@ on:
       app_name:
         description: "App name"
         required: true
-        default: "MyHTMLApp"
+        default: MyHTMLApp
       html_file:
         description: "HTML filename (index.html)"
         required: true
-        default: "index.html"
+        default: index.html
 
 jobs:
   build-ios:
@@ -30,14 +30,13 @@ jobs:
           npm init -y
           npm install @capacitor/cli @capacitor/core @capacitor/ios
           mkdir -p www
-          echo "<html><body><h1>Hello iOS</h1></body></html>" > www/index.html
+          echo '<html><body><h1>Hello iOS</h1></body></html>' > www/index.html
           APP_NAME="${{ github.event.inputs.app_name }}"
           PACKAGE_ID="com.${{ github.actor }}.${{ github.event.inputs.app_name }}"
           npx cap init "$APP_NAME" "$PACKAGE_ID" --web-dir=www
 
       - name: Install CocoaPods
-        run: |
-          sudo gem install cocoapods
+        run: sudo gem install cocoapods
 
       - name: Add iOS platform (ignore errors)
         run: |
@@ -48,15 +47,15 @@ jobs:
 
       - name: Patch Podfile (force iOS 16.0)
         run: |
+          mkdir -p ios/App
           if [ -f ios/App/Podfile ]; then
             sed -i '' 's/platform :ios.*/platform :ios, "16.0"/' ios/App/Podfile || true
           else
-            mkdir -p ios/App
             echo 'platform :ios, "16.0"' > ios/App/Podfile
-            echo 'target "App" do
-  use_frameworks!
-  use_modular_headers!
-end' >> ios/App/Podfile
+            echo 'target "App" do' >> ios/App/Podfile
+            echo '  use_frameworks!' >> ios/App/Podfile
+            echo '  use_modular_headers!' >> ios/App/Podfile
+            echo 'end' >> ios/App/Podfile
           fi
           echo "✅ Podfile content:"
           cat ios/App/Podfile
