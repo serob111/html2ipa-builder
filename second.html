@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no"
+  />
+  <title>MyHTMLApp ✨</title>
+
+  <!-- iOS web-app (looks native in WebView / Safari) -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="MyHTMLApp" />
+
+  <style>
+    :root{
+      --bg1:#100f1a;
+      --bg2:#1a1630;
+      --card:rgba(255,255,255,.12);
+      --text:#fafafa;
+      --muted:#cfcfe6;
+      --accent:#7c5cff;
+      --accent-2:#00d4ff;
+      --ok:#16c47f;
+    }
+    @media (prefers-color-scheme: light){
+      :root{
+        --bg1:#f2f5ff;
+        --bg2:#e6ecff;
+        --card:rgba(255,255,255,.65);
+        --text:#0f1222;
+        --muted:#4b4f6a;
+        --accent:#7058ff;
+        --accent-2:#00a8ff;
+        --ok:#0fb574;
+      }
+    }
+
+    html,body{
+      height:100%;
+      margin:0;
+      -webkit-tap-highlight-color: transparent;
+      color:var(--text);
+      font-family: ui-rounded, system-ui, -apple-system, "SF Pro Text", "SF Pro Display", Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    /* animated gradient background */
+    .bg{
+      position:fixed; inset:0; overflow:hidden;
+      background: radial-gradient(1200px 800px at 20% -10%, var(--accent), transparent 55%),
+                  radial-gradient(1200px 900px at 120% 110%, var(--accent-2), transparent 50%),
+                  linear-gradient(180deg, var(--bg1), var(--bg2));
+      filter: saturate(1.05) contrast(1.02);
+      animation: float 16s ease-in-out infinite alternate;
+    }
+    @keyframes float{
+      from{ filter: hue-rotate(0deg) saturate(1.05) }
+      to  { filter: hue-rotate(12deg) saturate(1.2) }
+    }
+
+    /* layout with safe-area insets */
+    .wrap{
+      position:relative;
+      min-height:100%;
+      padding: max(18px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+               max(22px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+      display:grid;
+      place-items:center;
+    }
+
+    .card{
+      width:min(92vw, 560px);
+      backdrop-filter: blur(16px) saturate(120%);
+      -webkit-backdrop-filter: blur(16px) saturate(120%);
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 22px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+      padding: 26px 22px;
+    }
+
+    .title{
+      display:flex; align-items:center; gap:12px;
+      font-size: clamp(20px, 6vw, 28px); font-weight: 800; letter-spacing: .2px;
+    }
+    .badge{
+      font-size:12px; padding:4px 10px; border-radius: 999px;
+      background: linear-gradient(90deg,var(--accent),var(--accent-2)); color:white;
+      box-shadow: 0 6px 16px rgba(124,92,255,.35);
+    }
+    .muted{ color: var(--muted); }
+
+    .clock{
+      margin: 8px 0 2px;
+      font-weight: 700;
+      font-variation-settings:"wght" 700;
+      font-size: clamp(30px, 12vw, 44px);
+      letter-spacing: .5px;
+    }
+
+    .grid{
+      display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:16px;
+    }
+    .btn{
+      appearance:none; border:0; cursor:pointer;
+      padding:14px 16px; border-radius:16px; font-weight:700;
+      background: rgba(255,255,255,.08);
+      color: var(--text);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.14);
+      transition: transform .08s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .btn:active{ transform: translateY(1px) scale(.995); }
+    .btn.primary{
+      background: linear-gradient(180deg, rgba(124,92,255,.95), rgba(96,70,226,.95));
+      color:white;
+      box-shadow: 0 10px 24px rgba(124,92,255,.35);
+    }
+    .btn.ok{
+      background: linear-gradient(180deg, rgba(22,196,127,.95), rgba(18,165,108,.95));
+      color:white;
+      box-shadow: 0 10px 24px rgba(22,196,127,.35);
+    }
+
+    .list{ margin:16px 0 0; padding:0; list-style:none; }
+    .list li{
+      padding:10px 0; display:flex; align-items:center; gap:10px;
+      border-top:1px dashed rgba(255,255,255,.2);
+    }
+    .dot{ width:10px; height:10px; border-radius:50%; background:var(--accent-2); box-shadow:0 0 12px rgba(0,212,255,.6) }
+    .footer{
+      margin-top:18px; font-size:13px; text-align:center; opacity:.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg" aria-hidden="true"></div>
+  <main class="wrap">
+    <section class="card" role="region" aria-label="Welcome">
+      <div class="title">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 12a8 8 0 1116 0c0 4.418-3.582 8-8 8H4v-8z" stroke="currentColor" stroke-width="1.6"/>
+          <circle cx="12" cy="12" r="3" fill="currentColor"/>
+        </svg>
+        <span>Welcome to <span class="badge">MyHTMLApp</span></span>
+      </div>
+
+      <div class="clock" id="clock">--:--</div>
+      <div class="muted" id="ua"></div>
+
+      <div class="grid">
+        <button class="btn primary" id="vibrate">Tap me 💥</button>
+        <button class="btn" id="toggle">Toggle theme 🌗</button>
+        <button class="btn ok" id="ok">Success toast ✅</button>
+        <button class="btn" id="info">Device info ℹ️</button>
+      </div>
+
+      <ul class="list" id="log">
+        <li><span class="dot"></span><span>Smooth gradient • glass UI • safe areas</span></li>
+      </ul>
+
+      <div class="footer">Built with plain HTML/CSS/JS • Optimized for iPhone</div>
+    </section>
+  </main>
+
+  <script>
+    // live clock
+    const clockEl = document.getElementById('clock');
+    const uaEl = document.getElementById('ua');
+    const logEl = document.getElementById('log');
+
+    function pad(n){ return String(n).padStart(2,'0'); }
+    function tick(){
+      const d = new Date();
+      clockEl.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      requestAnimationFrame(()=>{});
+    }
+    setInterval(tick, 500); tick();
+
+    // show minimal device info
+    uaEl.textContent = navigator.userAgent.replace(/\s+Mobile\/\w+\s+Safari\/\w+/,'').slice(0,100);
+
+    // tiny helper
+    function pushLog(text, ok=false){
+      const li = document.createElement('li');
+      const dot = document.createElement('span'); dot.className = 'dot';
+      if(ok){ dot.style.background = 'var(--ok)'; dot.style.boxShadow = '0 0 12px rgba(22,196,127,.6)'; }
+      const span = document.createElement('span'); span.textContent = text;
+      li.append(dot, span); logEl.prepend(li);
+    }
+
+    // haptic tap / vibrate
+    document.getElementById('vibrate').addEventListener('click', () => {
+      if (navigator.vibrate) navigator.vibrate([12, 40, 12]);
+      pushLog('Haptic tap fired', true);
+    });
+
+    // theme toggle (respects prefers-color-scheme)
+    const toggle = document.getElementById('toggle');
+    let darkForced = false;
+    toggle.addEventListener('click', () => {
+      darkForced = !darkForced;
+      document.documentElement.style.colorScheme = darkForced ? 'dark' : 'light';
+      pushLog(`Theme: ${darkForced ? 'Dark' : 'Light'}`, true);
+    });
+
+    // info
+    document.getElementById('info').addEventListener('click', () => {
+      const d = {
+        platform: navigator.platform,
+        language: navigator.language,
+        online: navigator.onLine,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        dpr: window.devicePixelRatio
+      };
+      pushLog(`W:${d.width} H:${d.height} DPR:${d.dpr}`);
+    });
+
+    // success toast demo (simple)
+    document.getElementById('ok').addEventListener('click', () => {
+      pushLog('All good! Enjoy your app ✨', true);
+    });
+  </script>
+</body>
+</html>
