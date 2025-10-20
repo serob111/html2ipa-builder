@@ -6,102 +6,63 @@ on:
       app_name:
         description: "App name"
         required: true
-        default: MyHTMLApp
+        default: "html_app"
       html_file:
         description: "HTML filename (index.html)"
         required: true
-        default: index.html
+        default: "index.html"
 
 jobs:
   build-ios:
     runs-on: macos-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
-      - name: Prepare Capacitor project
+      - name: Clean old iOS build (if exists)
+        run: |
+          rm -rf ios
+          rm -rf www
+          rm -rf node_modules
+          echo "Old iOS and web folders removed ✅"
+
+      - name: Install Capacitor and dependencies
         run: |
           npm init -y
           npm install @capacitor/cli @capacitor/core @capacitor/ios
-          mkdir -p www
-          echo '<html><body><h1>Hello iOS</h1></body></html>' > www/index.html
-          APP_NAME="${{ github.event.inputs.app_name }}"
-          PACKAGE_ID="com.${{ github.actor }}.${{ github.event.inputs.app_name }}"
-          npx cap init "$APP_NAME" "$PACKAGE_ID" --web-dir=www
 
-      - name: Install CocoaPods
-        run: sudo gem install cocoapods
+      - name: Initialize Capacitor project
+        run: |
+          npx cap init "${{ github.event.inputs.app_name }}" "com.${{ github.actor }}.${{ github.event.inputs.app_name }}" --web-dir=www
+
+      - name: Copy updated web assets
+        run: |
+          mkdir -p www
+          cp ${{ github.event.inputs.html_file }} www/index.html
+          npx cap copy ios
 
       - name: Add iOS platform
         run: |
-          npx cap add ios || true
-          echo "✅ iOS platform created:"
-          ls -R ios || true
+          npx cap add ios
+          # исправляем минимальную версию iOS (Capacitor требует >=14)
+          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = 13.0/IPHONEOS_DEPLOYMENT_TARGET = 14.0/' ios/App/App.xcodeproj/project.pbxproj
+          cd ios/App && pod install --repo-update
 
-      - name: Force deployment target to iOS 14.0 everywhere
-        run: |
-          # 1️⃣ Подготовим Podfile
-          cd ios/App
-          if [ -f Podfile ]; then
-            sed -i '' 's/platform :ios.*/platform :ios, "14.0"/' Podfile || true
-          else
-            echo 'platform :ios, "14.0"' > Podfile
-            echo 'target "App" do' >> Podfile
-            echo '  use_frameworks!' >> Podfile
-            echo '  use_modular_headers!' >> Podfile
-            echo 'end' >> Podfile
-          fi
-
-          # 2️⃣ Исправим все Xcode targets
-          cd ..
-          find . -type f -name "project.pbxproj" -print0 | while IFS= read -r -d '' file; do
-            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = 14.0/' "$file" || true
-          done
-          find . -type f -name "*.xcconfig" -print0 | while IFS= read -r -d '' file; do
-            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = 14.0/' "$file" || true
-          done
-          echo "✅ All deployment targets forced to iOS 14.0"
-
-      - name: Install Pods
+      - name: Build unsigned .ipa
         run: |
           cd ios/App
-          pod repo update
-          pod install --verbose
+          xcodebuild -scheme App -sdk iphoneos -configuration Release archive -archivePath $PWD/build/App.xcarchive DEVELOPMENT_TEAM="" CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
+          mkdir -p $PWD/build/ipa
+          xcodebuild -exportArchive -archivePath $PWD/build/App.xcarchive -exportPath $PWD/build/ipa -exportOptionsPlist <(echo '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>method</key><string>development</string></dict></plist>')
 
-      - name: Build .app (no signing)
-        run: |
-          cd ios/App
-          npx cap sync ios || true
-          xcodebuild \
-            -workspace App.xcworkspace \
-            -scheme App \
-            -configuration Release \
-            -sdk iphoneos \
-            BUILD_DIR=$PWD/build \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            clean build | xcpretty
-
-      - name: Package unsigned .ipa
-        run: |
-          cd ios/App
-          mkdir -p Payload
-          cp -R build/Release-iphoneos/App.app Payload/
-          zip -r MyApp_unsigned.ipa Payload
-          mkdir -p build/ipa
-          mv MyApp_unsigned.ipa build/ipa/
-
-      - name: Upload unsigned .ipa
+      - name: Upload .ipa artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-app
-          path: ios/App/build/ipa/MyApp_unsigned.ipa
-          if-no-files-found: error
-          retention-days: 7
+          path: ios/App/build/ipa/*.ipa
