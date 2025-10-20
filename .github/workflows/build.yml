@@ -36,29 +36,29 @@ jobs:
           npx cap init "$APP_NAME" "$PACKAGE_ID" --web-dir=www
 
       - name: Install CocoaPods
-        run: sudo gem install cocoapods
+        run: |
+          sudo gem install cocoapods
 
-      - name: Create iOS platform manually if needed
+      - name: Add iOS platform (ignore errors)
         run: |
           npx cap add ios || true
-          # иногда cap add ios падает до создания ios/App — создаём вручную
-          if [ ! -d ios/App ]; then
-            mkdir -p ios/App
-            cd ios/App
-            echo 'platform :ios, "16.0"' > Podfile
-            echo 'target "App" do
-  use_frameworks!
-  use_modular_headers!
-end' >> Podfile
-            cd ../..
-          fi
-          ls -R ios || true
+          echo "✅ iOS folder structure after add:"
+          ls -la ios || true
+          ls -la ios/App || true
 
-      - name: Patch Podfile target (force iOS 16.0)
+      - name: Patch Podfile (force iOS 16.0)
         run: |
           if [ -f ios/App/Podfile ]; then
             sed -i '' 's/platform :ios.*/platform :ios, "16.0"/' ios/App/Podfile || true
+          else
+            mkdir -p ios/App
+            echo 'platform :ios, "16.0"' > ios/App/Podfile
+            echo 'target "App" do
+  use_frameworks!
+  use_modular_headers!
+end' >> ios/App/Podfile
           fi
+          echo "✅ Podfile content:"
           cat ios/App/Podfile
 
       - name: Install Pods
