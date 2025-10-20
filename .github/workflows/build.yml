@@ -6,11 +6,11 @@ on:
       app_name:
         description: "App name"
         required: true
-        default: "MyHTMLApp"
+        default: MyHTMLApp
       html_file:
-        description: "HTML filename"
+        description: "HTML filename (second.html)"
         required: true
-        default: "index.html"
+        default: second.html
 
 jobs:
   build-ios:
@@ -30,22 +30,51 @@ jobs:
           npm init -y
           npm install @capacitor/cli @capacitor/core @capacitor/ios
           mkdir -p www
-          cp ${{ github.event.inputs.html_file }} www/index.html
-          npx cap init "${{ github.event.inputs.app_name }}" "com.${{ github.actor }}.${{ github.event.inputs.app_name }}" --web-dir=www
+          echo '<html><body><h1>Hello iOS</h1></body></html>' > www/second.html
+          APP_NAME="${{ github.event.inputs.app_name }}"
+          PACKAGE_ID="com.${{ github.actor }}.${{ github.event.inputs.app_name }}"
+          npx cap init "$APP_NAME" "$PACKAGE_ID" --web-dir=www
 
       - name: Install CocoaPods
         run: sudo gem install cocoapods
 
       - name: Add iOS platform
         run: |
-          npx cap add ios
-          cd ios/App
-          sed -i '' 's/platform :ios.*/platform :ios, "14.0"/' Podfile || true
-          pod install --repo-update
-          cd ../..
-          echo "✅ iOS platform added and pods installed"
+          npx cap add ios || true
+          echo "✅ iOS platform created:"
+          ls -R ios || true
 
-      - name: Build iOS App (Release, no signing)
+      - name: Force deployment target to iOS 14.0 everywhere
+        run: |
+          # 1️⃣ Подготовим Podfile
+          cd ios/App
+          if [ -f Podfile ]; then
+            sed -i '' 's/platform :ios.*/platform :ios, "14.0"/' Podfile || true
+          else
+            echo 'platform :ios, "14.0"' > Podfile
+            echo 'target "App" do' >> Podfile
+            echo '  use_frameworks!' >> Podfile
+            echo '  use_modular_headers!' >> Podfile
+            echo 'end' >> Podfile
+          fi
+
+          # 2️⃣ Исправим все Xcode targets
+          cd ..
+          find . -type f -name "project.pbxproj" -print0 | while IFS= read -r -d '' file; do
+            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = 14.0/' "$file" || true
+          done
+          find . -type f -name "*.xcconfig" -print0 | while IFS= read -r -d '' file; do
+            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = 14.0/' "$file" || true
+          done
+          echo "✅ All deployment targets forced to iOS 14.0"
+
+      - name: Install Pods
+        run: |
+          cd ios/App
+          pod repo update
+          pod install --verbose
+
+      - name: Build .app (no signing)
         run: |
           cd ios/App
           npx cap sync ios || true
@@ -63,22 +92,16 @@ jobs:
       - name: Package unsigned .ipa
         run: |
           cd ios/App
-          APP_PATH="$(find build/Release-iphoneos -name '*.app' | head -n 1)"
-          echo "📦 App found at: $APP_PATH"
-          if [ -z "$APP_PATH" ]; then
-            echo "❌ App not found!"; ls -R build; exit 1
-          fi
           mkdir -p Payload
-          cp -R "$APP_PATH" Payload/App.app
-          zip -r MyHTMLApp_unsigned.ipa Payload
+          cp -R build/Release-iphoneos/App.app Payload/
+          zip -r MyApp_unsigned.ipa Payload
           mkdir -p build/ipa
-          mv MyHTMLApp_unsigned.ipa build/ipa/
-          echo "✅ .ipa packaged successfully"
+          mv MyApp_unsigned.ipa build/ipa/
 
       - name: Upload unsigned .ipa
         uses: actions/upload-artifact@v4
         with:
           name: ios-app
-          path: ios/App/build/ipa/MyHTMLApp_unsigned.ipa
+          path: ios/App/build/ipa/MyApp_unsigned.ipa
           if-no-files-found: error
           retention-days: 7
